@@ -1,0 +1,51 @@
+# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
+# More GitHub Actions for Azure: https://github.com/Azure/actions
+
+name: Build and deploy container app to Azure Web App - jmassardo-gh-app-docker
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: 'ubuntu-latest'
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v1
+
+    - name: Log in to registry
+      uses: docker/login-action@v1
+      with:
+        registry: https://jmassardo.azurecr.io/
+        username: ${{ secrets.AzureAppService_ContainerUsername_405869a3fa104ba5a9491e0b2c229aa0 }}
+        password: ${{ secrets.AzureAppService_ContainerPassword_7b5d880b79de49db915bb3e81f70efbd }}
+
+    - name: Build and push container image to registry
+      uses: docker/build-push-action@v2
+      with:
+        push: true
+        tags: jmassardo.azurecr.io/${{ secrets.AzureAppService_ContainerUsername_405869a3fa104ba5a9491e0b2c229aa0 }}/simple-gh-app:${{ github.sha }}
+        file: ./Dockerfile
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    environment:
+      name: 'production'
+      url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
+
+    steps:
+    - name: Deploy to Azure Web App
+      id: deploy-to-webapp
+      uses: azure/webapps-deploy@v2
+      with:
+        app-name: 'jmassardo-gh-app-docker'
+        slot-name: 'production'
+        publish-profile: ${{ secrets.AzureAppService_PublishProfile_2307afcd68cd4cfdb1deb89ec9bf1ed8 }}
+        images: 'jmassardo.azurecr.io/${{ secrets.AzureAppService_ContainerUsername_405869a3fa104ba5a9491e0b2c229aa0 }}/simple-gh-app:${{ github.sha }}'
